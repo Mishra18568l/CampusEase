@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Manage Menu - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireAdmin();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase Admin</div>
+        <div class="ce-topnav-links">
+            <a href="admin-menu.html" class="ce-topnav-link active"><i class="fas fa-utensils"></i> Manage Menu</a>
+            <a href="admin-orders.html" class="ce-topnav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a>
+            <a href="admin-transactions.html" class="ce-topnav-link"><i class="fas fa-receipt"></i> Transactions</a>
+            <a href="try.html" class="ce-topnav-link"><i class="fas fa-map-marked-alt"></i> Navigation</a>
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-utensils"></i> Manage Menu</h1>
+        <p>Add, edit, or remove food items and categories.</p>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div style="display:flex; justify-content:space-between; padding:0 24px 16px; flex-wrap:wrap; gap:10px;">
+        <button class="btn btn-outline" onclick="openCategoryModal()"><i class="fas fa-tags"></i> Manage Categories</button>
+        <button class="btn btn-outline" onclick="openShopModal()"><i class="fas fa-store"></i> Manage Shops</button>
+        <button class="btn btn-outline" onclick="distributeFoods()"><i class="fas fa-random"></i> Auto-Assign Unassigned Foods to Shops</button>
+        <button class="btn btn-primary" onclick="openFoodModal()"><i class="fas fa-plus"></i> Add Food Item</button>
+    </div>
+
+    <table class="admin-table" id="foodTable">
+        <thead>
+            <tr><th>Name</th><th>Category</th><th>Shop</th><th>Price</th><th>Prep Time</th><th>Veg</th><th>Available</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="foodTableBody">
+            <tr><td colspan="8">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Food add/edit modal -->
+<div class="modal-overlay" id="foodModal">
+    <div class="modal-box">
+        <h3 id="foodModalTitle">Add Food Item</h3>
+        <input type="hidden" id="foodId">
+        <div class="form-group"><label>Food Name</label><input type="text" id="foodName"></div>
+        <div class="form-group"><label>Description</label><textarea id="foodDescription" rows="2"></textarea></div>
+        <div class="form-group"><label>Price (₹)</label><input type="number" id="foodPrice" step="0.01"></div>
+        <div class="form-group"><label>Category</label><select id="foodCategory"></select></div>
+        <div class="form-group"><label>Shop</label><select id="foodShop"><option value="">-- Not assigned yet --</option></select></div>
+        <div class="form-group"><label>Image URL</label><input type="text" id="foodImageUrl" placeholder="https://..."></div>
+        <div class="form-group"><label>Preparation Time (minutes)</label><input type="number" id="foodPrepTime"></div>
+        <div class="form-group">
+            <label><input type="checkbox" id="foodVeg" style="width:auto;"> Vegetarian</label>
+        </div>
+        <div class="form-group">
+            <label><input type="checkbox" id="foodAvailable" style="width:auto;" checked> Available</label>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('foodModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveFood()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Category modal -->
+<div class="modal-overlay" id="categoryModal">
+    <div class="modal-box">
+        <h3>Manage Categories</h3>
+        <div id="categoryListWrap" style="margin-bottom:14px;"></div>
+        <div class="form-group"><label>New Category Name</label><input type="text" id="newCategoryName"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('categoryModal')">Close</button>
+            <button class="btn btn-primary" onclick="addCategory()">Add Category</button>
+        </div>
+    </div>
+</div>
+
+<!-- Shop modal -->
+<div class="modal-overlay" id="shopModal">
+    <div class="modal-box" style="max-width:560px;">
+        <h3>Manage Shops</h3>
+        <div id="shopListWrap" style="margin-bottom:18px;"></div>
+        <hr style="border:none;border-top:1px solid #eef2f7;margin:16px 0;">
+        <p style="font-size:0.85rem;color:#5a6b82;margin-bottom:10px;">
+            Creating a shop also creates its vendor's login — give these credentials to the shop owner.
+        </p>
+        <div class="form-group"><label>Shop Name</label><input type="text" id="newShopName" placeholder="e.g. Sharda Cafeteria - Block A"></div>
+        <div class="form-group"><label>Shop Description (optional)</label><input type="text" id="newShopDescription"></div>
+        <div class="form-group"><label>Vendor Username</label><input type="text" id="newVendorUsername"></div>
+        <div class="form-group"><label>Vendor Email</label><input type="email" id="newVendorEmail"></div>
+        <div class="form-group"><label>Vendor Password</label><input type="text" id="newVendorPassword" placeholder="Share this with the vendor"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal('shopModal')">Close</button>
+            <button class="btn btn-primary" onclick="addShop()">Create Shop &amp; Vendor Login</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let categories = [];
+let shops = [];
+let foods = [];
+
+async function init() {
+    document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Admin');
+    await loadCategories();
+    await loadShops();
+    await loadFoods();
+}
+
+async function loadCategories() {
+    try {
+        categories = await apiFetch('/categories');
+        const select = document.getElementById('foodCategory');
+        select.innerHTML = categories.map(c => `<option value="${c.id}">${escapeHtml(c.categoryName)}</option>`).join('');
+    } catch (err) { showError(err.message); }
+}
+
+async function loadShops() {
+    try {
+        shops = await apiFetch('/shops');
+        const select = document.getElementById('foodShop');
+        select.innerHTML = '<option value="">-- Not assigned yet --</option>' +
+            shops.map(s => `<option value="${s.id}">${escapeHtml(s.shopName)}</option>`).join('');
+    } catch (err) { showError(err.message); }
+}
+
+async function loadFoods() {
+    try {
+        foods = await apiFetch('/foods');
+        renderFoodTable();
+    } catch (err) { showError(err.message); }
+}
+
+function renderFoodTable() {
+    const body = document.getElementById('foodTableBody');
+    if (!foods.length) {
+        body.innerHTML = '<tr><td colspan="8">No food items yet. Add your first one!</td></tr>';
+        return;
+    }
+    body.innerHTML = foods.map(f => `
+        <tr>
+            <td>${escapeHtml(f.foodName)}</td>
+            <td>${f.category ? escapeHtml(f.category.categoryName) : '-'}</td>
+            <td>${f.shop ? escapeHtml(f.shop.shopName) : '<span style="color:#c0392b;">Unassigned</span>'}</td>
+            <td>₹${f.price.toFixed(2)}</td>
+            <td>${f.preparationTime ?? '-'} min</td>
+            <td>${f.vegetarian ? 'Veg' : 'Non-Veg'}</td>
+            <td>${f.availability !== false ? 'Yes' : 'No'}</td>
+            <td class="admin-actions">
+                <button class="btn btn-outline" onclick="editFood(${f.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-danger" onclick="deleteFood(${f.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openFoodModal() {
+    document.getElementById('foodModalTitle').textContent = 'Add Food Item';
+    document.getElementById('foodId').value = '';
+    document.getElementById('foodName').value = '';
+    document.getElementById('foodDescription').value = '';
+    document.getElementById('foodPrice').value = '';
+    document.getElementById('foodImageUrl').value = '';
+    document.getElementById('foodPrepTime').value = '';
+    document.getElementById('foodShop').value = '';
+    document.getElementById('foodVeg').checked = true;
+    document.getElementById('foodAvailable').checked = true;
+    document.getElementById('foodModal').classList.add('open');
+}
+
+function editFood(id) {
+    const f = foods.find(x => x.id === id);
+    if (!f) return;
+    document.getElementById('foodModalTitle').textContent = 'Edit Food Item';
+    document.getElementById('foodId').value = f.id;
+    document.getElementById('foodName').value = f.foodName;
+    document.getElementById('foodDescription').value = f.description || '';
+    document.getElementById('foodPrice').value = f.price;
+    document.getElementById('foodImageUrl').value = f.imageUrl || '';
+    document.getElementById('foodPrepTime').value = f.preparationTime || '';
+    document.getElementById('foodCategory').value = f.category ? f.category.id : '';
+    document.getElementById('foodShop').value = f.shop ? f.shop.id : '';
+    document.getElementById('foodVeg').checked = !!f.vegetarian;
+    document.getElementById('foodAvailable').checked = f.availability !== false;
+    document.getElementById('foodModal').classList.add('open');
+}
+
+async function saveFood() {
+    const id = document.getElementById('foodId').value;
+    const payload = {
+        foodName: document.getElementById('foodName').value.trim(),
+        description: document.getElementById('foodDescription').value.trim(),
+        price: parseFloat(document.getElementById('foodPrice').value),
+        categoryId: document.getElementById('foodCategory').value ? Number(document.getElementById('foodCategory').value) : null,
+        shopId: document.getElementById('foodShop').value ? Number(document.getElementById('foodShop').value) : null,
+        imageUrl: document.getElementById('foodImageUrl').value.trim(),
+        preparationTime: document.getElementById('foodPrepTime').value ? Number(document.getElementById('foodPrepTime').value) : null,
+        vegetarian: document.getElementById('foodVeg').checked,
+        availability: document.getElementById('foodAvailable').checked
+    };
+    if (!payload.foodName || isNaN(payload.price)) {
+        showError('Food name and price are required.');
+        return;
+    }
+    try {
+        if (id) {
+            await apiFetch('/foods/' + id, { method: 'PUT', body: payload });
+        } else {
+            await apiFetch('/foods', { method: 'POST', body: payload });
+        }
+        closeModal('foodModal');
+        await loadFoods();
+    } catch (err) { showError(err.message); }
+}
+
+async function deleteFood(id) {
+    if (!confirm('Delete this food item?')) return;
+    try {
+        await apiFetch('/foods/' + id, { method: 'DELETE' });
+        await loadFoods();
+    } catch (err) { showError(err.message); }
+}
+
+function openCategoryModal() {
+    renderCategoryList();
+    document.getElementById('categoryModal').classList.add('open');
+}
+
+function renderCategoryList() {
+    const wrap = document.getElementById('categoryListWrap');
+    wrap.innerHTML = categories.map(c => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef2f7;">
+            <span>${escapeHtml(c.categoryName)}</span>
+            <button class="btn btn-danger" onclick="deleteCategory(${c.id})"><i class="fas fa-trash"></i></button>
+        </div>
+    `).join('') || '<p style="color:#8a97a8;">No categories yet.</p>';
+}
+
+async function addCategory() {
+    const name = document.getElementById('newCategoryName').value.trim();
+    if (!name) return;
+    try {
+        await apiFetch('/categories', { method: 'POST', body: { categoryName: name } });
+        document.getElementById('newCategoryName').value = '';
+        await loadCategories();
+        renderCategoryList();
+    } catch (err) { showError(err.message); }
+}
+
+async function deleteCategory(id) {
+    if (!confirm('Delete this category? Food items in it will need reassigning.')) return;
+    try {
+        await apiFetch('/categories/' + id, { method: 'DELETE' });
+        await loadCategories();
+        renderCategoryList();
+    } catch (err) { showError(err.message); }
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+
+function openShopModal() {
+    renderShopList();
+    document.getElementById('shopModal').classList.add('open');
+}
+
+function renderShopList() {
+    const wrap = document.getElementById('shopListWrap');
+    if (!shops.length) {
+        wrap.innerHTML = '<p style="color:#8a97a8;">No shops yet. Create one below.</p>';
+        return;
+    }
+    wrap.innerHTML = shops.map(s => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eef2f7;">
+            <div>
+                <strong>${escapeHtml(s.shopName)}</strong>
+                ${s.description ? `<div style="font-size:0.78rem;color:#8a97a8;">${escapeHtml(s.description)}</div>` : ''}
+                <div style="font-size:0.78rem;color:#8a97a8;">Owner: ${escapeHtml(s.owner ? s.owner.username : '-')}</div>
+            </div>
+            <span class="status-pill ${s.active !== false ? 'status-DELIVERED' : 'status-REJECTED'}">
+                ${s.active !== false ? 'Active' : 'Inactive'}
+            </span>
+        </div>
+    `).join('');
+}
+
+async function addShop() {
+    const payload = {
+        shopName: document.getElementById('newShopName').value.trim(),
+        shopDescription: document.getElementById('newShopDescription').value.trim(),
+        username: document.getElementById('newVendorUsername').value.trim(),
+        email: document.getElementById('newVendorEmail').value.trim(),
+        password: document.getElementById('newVendorPassword').value,
+        phone: ''
+    };
+    if (!payload.shopName || !payload.username || !payload.email || !payload.password) {
+        showError('Shop name, vendor username, email, and password are all required.');
+        return;
+    }
+    try {
+        await apiFetch('/admin/vendors', { method: 'POST', body: payload });
+        document.getElementById('newShopName').value = '';
+        document.getElementById('newShopDescription').value = '';
+        document.getElementById('newVendorUsername').value = '';
+        document.getElementById('newVendorEmail').value = '';
+        document.getElementById('newVendorPassword').value = '';
+        await loadShops();
+        renderShopList();
+        alert('Shop created! Give the vendor their username/email and password to log in at the same login page.');
+    } catch (err) { showError(err.message); }
+}
+
+async function distributeFoods() {
+    if (!shops.length) {
+        showError('Create at least one shop first.');
+        return;
+    }
+    if (!confirm('Randomly assign every food item that has no shop yet to one of your existing shops?')) return;
+    try {
+        const result = await apiFetch('/shops/distribute-foods', { method: 'POST' });
+        alert(`Assigned ${result.assignedCount} food item(s) across your shops.`);
+        await loadFoods();
+    } catch (err) { showError(err.message); }
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+init();
+</script>
+</body>
+</html>

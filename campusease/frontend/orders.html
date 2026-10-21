@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Orders - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireLogin();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase</div>
+        <div class="ce-topnav-links">
+            <a href="try.html" class="ce-topnav-link"><i class="fas fa-map-marked-alt"></i> Campus Navigation</a>
+            <a href="menu.html" class="ce-topnav-link"><i class="fas fa-utensils"></i> Food Ordering</a>
+            <a href="cart.html" class="ce-topnav-link"><i class="fas fa-shopping-cart"></i> Cart <span class="cart-badge" id="navCartCount">0</span></a>
+            <a href="orders.html" class="ce-topnav-link active"><i class="fas fa-receipt"></i> My Orders</a>
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-receipt"></i> My Orders</h1>
+        <p>Track your current orders or browse your order history.</p>
+    </div>
+
+    <div id="errorBox"></div>
+    <div id="paidBanner" style="display:none;margin:0 24px 16px;background:#e6f6e6;color:#1c8a3d;padding:12px 16px;border-radius:8px;font-weight:600;">
+        <i class="fas fa-check-circle"></i> Payment successful! Your order has been placed.
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="current" onclick="switchTab('current')">Current Orders</button>
+        <button class="tab-btn" data-tab="history" onclick="switchTab('history')">Order History</button>
+    </div>
+
+        <div id="ordersWrap">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading orders...</div>
+    </div>
+</div>
+
+<!-- Rate item modal -->
+<div class="modal-overlay" id="rateModal">
+    <div class="modal-box">
+        <h3>Rate this item</h3>
+        <p id="rateFoodName" style="color:#5a6b82; margin-bottom:14px; font-weight:600;"></p>
+        <div id="starPicker" style="font-size:2rem; color:#d8e2ef; margin-bottom:16px; cursor:pointer;">
+            <span data-star="1"><i class="far fa-star"></i></span>
+            <span data-star="2"><i class="far fa-star"></i></span>
+            <span data-star="3"><i class="far fa-star"></i></span>
+            <span data-star="4"><i class="far fa-star"></i></span>
+            <span data-star="5"><i class="far fa-star"></i></span>
+        </div>
+        <div class="form-group">
+            <label>Comment (optional)</label>
+            <textarea id="rateComment" rows="3" placeholder="How was it?"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeRateModal()">Cancel</button>
+            <button class="btn btn-primary" id="submitRatingBtn" onclick="submitRating()">Submit Rating</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const STEPS = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'DELIVERED'];
+let activeTab = 'current';
+let pendingReviewKeys = new Set();
+let selectedStars = 0;
+
+async function loadPendingReviews() {
+    try {
+        const pending = await apiFetch('/reviews/pending');
+        pendingReviewKeys = new Set(pending.map(p => `${p.orderId}-${p.foodId}`));
+    } catch (e) { /* non-critical -- rate buttons just won't show if this fails */ }
+}
+
+function renderRateRow(order) {
+    const unratedItems = (order.items || []).filter(i => pendingReviewKeys.has(`${order.id}-${i.food.id}`));
+    if (!unratedItems.length) {
+        return `<div style="font-size:0.82rem; color:#1c8a3d; margin:8px 0;"><i class="fas fa-check-circle"></i> All items rated</div>`;
+    }
+    return `<div style="display:flex; flex-wrap:wrap; gap:8px; margin:10px 0;">
+        ${unratedItems.map(i => `
+            <button class="btn btn-outline" style="font-size:0.8rem; padding:6px 12px;"
+                onclick="openRateModal(${order.id}, ${i.food.id}, '${escapeHtml(i.food.foodName).replace(/'/g, "\\'")}')">
+                <i class="fas fa-star" style="color:#f5b301;"></i> Rate ${escapeHtml(i.food.foodName)}
+            </button>
+        `).join('')}
+    </div>`;
+}
+
+function openRateModal(orderId, foodId, foodName) {
+    document.getElementById('rateModal').dataset.orderId = orderId;
+    document.getElementById('rateModal').dataset.foodId = foodId;
+    document.getElementById('rateFoodName').textContent = foodName;
+    document.getElementById('rateComment').value = '';
+    selectedStars = 0;
+    updateStarDisplay();
+    document.getElementById('rateModal').classList.add('open');
+}
+
+function closeRateModal() {
+    document.getElementById('rateModal').classList.remove('open');
+}
+
+document.getElementById('starPicker').addEventListener('click', function (e) {
+    const starEl = e.target.closest('[data-star]');
+    if (!starEl) return;
+    selectedStars = Number(starEl.dataset.star);
+    updateStarDisplay();
+});
+
+function updateStarDisplay() {
+    document.querySelectorAll('#starPicker [data-star]').forEach(el => {
+        const filled = Number(el.dataset.star) <= selectedStars;
+        el.innerHTML = filled ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+        el.style.color = filled ? '#f5b301' : '#d8e2ef';
+    });
+}
+
+async function submitRating() {
+    const orderId = Number(document.getElementById('rateModal').dataset.orderId);
+    const foodId = Number(document.getElementById('rateModal').dataset.foodId);
+    const comment = document.getElementById('rateComment').value.trim();
+
+    if (!selectedStars) {
+        showError('Please select a star rating.');
+        return;
+    }
+
+    const btn = document.getElementById('submitRatingBtn');
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    try {
+        await apiFetch('/reviews', {
+            method: 'POST',
+            body: { orderId, foodId, rating: selectedStars, comment }
+        });
+        closeRateModal();
+        await loadPendingReviews();
+        await loadOrders();
+    } catch (err) {
+        showError(err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+    loadOrders();
+}
+
+async function loadOrders() {
+    const wrap = document.getElementById('ordersWrap');
+    wrap.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading orders...</div>';
+    try {
+        const path = activeTab === 'current' ? '/orders' : '/orders/history';
+        const orders = await apiFetch(path);
+        renderOrders(orders);
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+function renderOrders(orders) {
+    const wrap = document.getElementById('ordersWrap');
+    if (!orders.length) {
+        wrap.innerHTML = `<div class="empty-state"><i class="fas fa-receipt"></i>No ${activeTab === 'current' ? 'active' : 'past'} orders yet.<br><br><a href="menu.html" class="btn btn-primary">Order Food</a></div>`;
+        return;
+    }
+    wrap.innerHTML = orders.map(o => {
+        const itemsText = (o.items || []).map(i => `${i.quantity}x ${escapeHtml(i.food.foodName)}`).join(', ');
+        const isRejectedOrCancelled = o.orderStatus === 'REJECTED' || o.orderStatus === 'CANCELLED';
+        const track = isRejectedOrCancelled ? '' : `
+            <div class="status-track">
+                ${STEPS.map(s => `<div class="step ${STEPS.indexOf(o.orderStatus) >= STEPS.indexOf(s) ? 'done' : ''}">${s}</div>`).join('')}
+            </div>`;
+        const canCancel = o.orderStatus === 'PENDING';
+        const rateRow = o.orderStatus === 'DELIVERED' ? renderRateRow(o) : '';
+        return `
+        <div class="order-card">
+            <div class="order-card-header">
+                <div>
+                    <div class="order-id">Order #${o.id}</div>
+                    <div class="order-date">${new Date(o.createdAt).toLocaleString()}</div>
+                </div>
+                <span class="status-pill status-${o.orderStatus}">${o.orderStatus}</span>
+            </div>
+            ${track}
+            <div class="order-items-list">${itemsText}</div>
+            ${rateRow}
+            <div class="order-footer">
+                <span class="order-total">Total: ₹${o.totalAmount.toFixed(2)} &middot; Payment: ${o.paymentStatus}</span>
+                ${canCancel ? `<button class="btn btn-danger" onclick="cancelOrder(${o.id})">Cancel Order</button>` : ''}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+async function cancelOrder(orderId) {
+    if (!confirm('Cancel this order?')) return;
+    try {
+        await apiFetch('/orders/' + orderId + '/cancel', { method: 'PUT' });
+        loadOrders();
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+async function updateCartBadge() {
+    try {
+        const cart = await apiFetch('/cart');
+        const count = (cart.items || []).reduce((sum, i) => sum + i.quantity, 0);
+        document.getElementById('navCartCount').textContent = count;
+    } catch (e) { /* ignore */ }
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Student');
+if (Auth.isAdmin()) { document.querySelector('.ce-topnav-links').insertAdjacentHTML('afterbegin', '<a href="admin-orders.html" class="ce-topnav-link"><i class="fas fa-user-shield"></i> Admin Panel</a>'); }
+if (new URLSearchParams(window.location.search).get('paid') === '1') {
+    document.getElementById('paidBanner').style.display = 'block';
+}
+updateCartBadge();
+loadPendingReviews().then(loadOrders);
+</script>
+</body>
+</html>

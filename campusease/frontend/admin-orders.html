@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Manage Orders - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireAdmin();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase Admin</div>
+        <div class="ce-topnav-links">
+            <a href="admin-menu.html" class="ce-topnav-link"><i class="fas fa-utensils"></i> Manage Menu</a>
+            <a href="admin-orders.html" class="ce-topnav-link active"><i class="fas fa-clipboard-list"></i> Manage Orders</a>
+            <a href="admin-transactions.html" class="ce-topnav-link"><i class="fas fa-receipt"></i> Transactions</a>
+            <a href="try.html" class="ce-topnav-link"><i class="fas fa-map-marked-alt"></i> Navigation</a>
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-clipboard-list"></i> Manage Orders</h1>
+        <p>Accept, prepare, and track every cafeteria order.</p>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div class="admin-grid" id="dashboardGrid">
+        <div class="stat-card"><div class="stat-value" id="statTotal">-</div><div class="stat-label">Total Orders</div></div>
+        <div class="stat-card"><div class="stat-value" id="statPending">-</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-value" id="statPreparing">-</div><div class="stat-label">Preparing</div></div>
+        <div class="stat-card"><div class="stat-value" id="statDelivered">-</div><div class="stat-label">Delivered</div></div>
+        <div class="stat-card"><div class="stat-value" id="statRevenue">-</div><div class="stat-label">Total Revenue (Paid)</div></div>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr><th>Order</th><th>Customer</th><th>Shop</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="ordersTableBody">
+            <tr><td colspan="8">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+const NEXT_ACTION = {
+    PENDING:   { label: 'Accept',  action: 'accept'  },
+    ACCEPTED:  { label: 'Prepare', action: 'prepare' },
+    PREPARING: { label: 'Mark Ready', action: 'ready' },
+    READY:     { label: 'Mark Delivered', action: 'deliver' }
+};
+
+async function loadDashboard() {
+    try {
+        const stats = await apiFetch('/admin/dashboard');
+        document.getElementById('statTotal').textContent = stats.totalOrders;
+        document.getElementById('statPending').textContent = stats.pendingOrders;
+        document.getElementById('statPreparing').textContent = stats.preparingOrders;
+        document.getElementById('statDelivered').textContent = stats.deliveredOrders;
+        document.getElementById('statRevenue').textContent = '₹' + Number(stats.totalRevenue).toFixed(2);
+    } catch (err) { showError(err.message); }
+}
+
+async function loadOrders() {
+    try {
+        const orders = await apiFetch('/admin/orders');
+        renderOrders(orders);
+    } catch (err) { showError(err.message); }
+}
+
+function renderOrders(orders) {
+    const body = document.getElementById('ordersTableBody');
+    if (!orders.length) {
+        body.innerHTML = '<tr><td colspan="8">No orders yet.</td></tr>';
+        return;
+    }
+    body.innerHTML = orders.map(o => {
+        const itemsText = (o.items || []).map(i => `${i.quantity}x ${escapeHtml(i.food.foodName)}`).join(', ');
+        const next = NEXT_ACTION[o.orderStatus];
+        const canReject = o.orderStatus === 'PENDING' || o.orderStatus === 'ACCEPTED';
+        return `
+        <tr>
+            <td>#${o.id}<br><span style="color:#8a97a8;font-size:0.78rem;">${new Date(o.createdAt).toLocaleString()}</span></td>
+            <td>${escapeHtml(o.user ? o.user.username : '-')}</td>
+            <td>${o.shop ? escapeHtml(o.shop.shopName) : '-'}</td>
+            <td>${itemsText}</td>
+            <td>₹${o.totalAmount.toFixed(2)}</td>
+            <td>${o.paymentStatus}</td>
+            <td><span class="status-pill status-${o.orderStatus}">${o.orderStatus}</span></td>
+            <td class="admin-actions">
+                ${next ? `<button class="btn btn-primary" onclick="doAction(${o.id}, '${next.action}')">${next.label}</button>` : ''}
+                ${canReject ? `<button class="btn btn-danger" onclick="doAction(${o.id}, 'reject')">Reject</button>` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function doAction(orderId, action) {
+    try {
+        await apiFetch(`/admin/orders/${orderId}/${action}`, { method: 'PUT' });
+        await Promise.all([loadOrders(), loadDashboard()]);
+    } catch (err) { showError(err.message); }
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Admin');
+loadDashboard();
+loadOrders();
+setInterval(() => { loadOrders(); loadDashboard(); }, 15000);
+</script>
+</body>
+</html>

@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharda University Campus Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="sharda-logo.png">
+    <style>
+        :root {
+            --primary: #002147;
+            --secondary: #ff8200;
+            --accent: #e74c3c;
+            --light: #f5f7fa;
+            --light-blue: #e3f0ff;
+            --dark: #002147;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --card-radius: 12px;
+            --shadow: 0 8px 20px rgba(0, 33, 71, 0.10);
+            --transition: all 0.3s cubic-bezier(.4,0,.2,1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        body {
+            background: var(--light-blue);
+            color: var(--dark);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: none;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: var(--card-radius);
+            box-shadow: 0 4px 24px rgba(0,33,71,0.06);
+            padding-bottom: 30px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 28px 0 40px;
+            position: relative;
+            background: var(--primary);
+            color: #fff;
+            border-radius: var(--card-radius);
+            margin-bottom: 30px;
+        }
+        
+        .header-logo-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+        }
+        
+        .sharda-logo {
+            height: 60px;
+            width: auto;
+            display: block;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,33,71,0.08);
+            padding: 4px;
+        }
+        
+        header h1 {
+            font-size: 2.8rem;
+            color: #fff;
+            margin-bottom: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 8px rgba(0,33,71,0.08);
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            color: var(--secondary);
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+            font-weight: 500;
+        }
+        
+        .search-section {
+            background: #fff;
+            border-radius: var(--card-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 16px 20px 16px 50px;
+            border: 2px solid #dbe2ef;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            transition: var(--transition);
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 4px rgba(255, 130, 0, 0.15);
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            background: #fff;
+            border: 2px solid #dbe2ef;
+            border-radius: 50px;
+            padding: 12px 25px;
+            font-weight: 600;
+            color: var(--primary);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--secondary);
+            color: #fff;
+            border-color: var(--secondary);
+        }
+        
+        .content-area {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 30px;
+    margin-bottom: 40px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .content-area {
+        grid-template-columns: 1fr;
+    }
+}
+        
+        .blocks-section {
+    background: var(--light-blue);
+    border-radius: var(--card-radius);
+    box-shadow: var(--shadow);
+    padding: 25px;
+    min-width: 0;
+}
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f4f8;
+        }
+        
+        .section-title i {
+            color: var(--secondary);
+            font-size: 1.4rem;
+        }
+        
+        .section-title h2 {
+            font-size: 1.6rem;
+            color: var(--primary);
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .blocks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        
+        .block-card {
+            background: linear-gradient(135deg, var(--light-blue) 0%, #f5f7fa 100%);
+            border-radius: var(--card-radius);
+            padding: 25px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            border: 2px solid #dbe2ef;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .block-card::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: var(--secondary);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: var(--transition);
+        }
+        
+        .block-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(0, 33, 71, 0.10);
+            border-color: var(--secondary);
+        }
+        
+        .block-card.active {
+            background: linear-gradient(135deg, #eaf1fb 0%, var(--light-blue) 100%);
+            border-color: var(--secondary);
+            box-shadow: 0 8px 25px rgba(255, 130, 0, 0.18);
+        }
+        
+        .block-card.active::after {
+            transform: scaleX(1);
+        }
+        
+        .block-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .block-card p {
+            color: var(--secondary);
+            font-size: 0.95rem;
+        }
+        
+        .block-icon {
+            width: 70px;
+            height: 70px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            font-size: 1.8rem;
+            color: var(--secondary);
+            transition: var(--transition);
+        }
+        
+        .block-card:hover .block-icon {
+            background: var(--secondary);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .map-section {
+            background: var(--light-blue);
+            border-radius: var(--card-radius);
+            box-shadow: var(--shadow);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .map-nav {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .map-nav-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid #dbe2ef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        
+        .map-nav-btn:hover {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .map-container {
+            flex: 1;
+            background: #f5f7fa;
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            border: 2px solid #dbe2ef;
+            position: relative;
+            min-height: 400px;
+        }
+        
+        #campus-map {
+            width: 100%;
+            height: 500px;
+            border-radius: var(--card-radius);
+        }
+        
+        .map-placeholder {
+            display: none;
+        }
+        
+        .map-placeholder i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #dbe2ef;
+        }
+        
+        .map-placeholder h3 {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .map-placeholder p {
+            max-width: 500px;
+            line-height: 1.6;
+        }
+        
+        .floor-plan {
+            display: none;
+            padding: 20px;
+            height: 100%;
+        }
+        
+        .floor-plan.active {
+            display: block;
+        }
+        
+        .floor-title {
+            font-size: 1.4rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .floor-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.room-list {
+    background: var(--light-blue);
+    border-radius: var(--card-radius);
+    box-shadow: 0 4px 12px rgba(0, 33, 71, 0.05);
+    padding: 16px 20px;
+    width: 100%;
+}
+        
+        .room-list h4 {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f4f8;
+            color: var(--primary);
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .room-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 10px;
+    padding-bottom: 6px;
+}
+
+.room-item {
+    background: var(--light-blue);
+    border: 2px solid #dbe2ef;
+    border-radius: 8px;
+    height: 50px;
+    min-width: 60px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+        
+        .room-item:hover {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+        
+        .room-item.highlighted {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.18);
+        }
+        
+        .map-view {
+    width: 100%;
+    height: 500px;
+    background: var(--light-blue);
+    border-radius: var(--card-radius);
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #dbe2ef;
+}
+        
+        .map-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    background: #fff;
+    display: block;
+}
+        
+        .map-highlight {
+            position: absolute;
+            background: rgba(231, 76, 60, 0.3);
+            border: 2px solid var(--accent);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        
+        .map-highlight:hover {
+            background: rgba(231, 76, 60, 0.4);
+        }
+        
+        .floors-selector {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 10px 0;
+            margin-top: 20px;
+        }
+        
+        .floor-btn {
+            background: #fff;
+            border: 2px solid #dbe2ef;
+            border-radius: 50px;
+            padding: 10px 25px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 600;
+            white-space: nowrap;
+            color: var(--primary);
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .floor-btn:hover {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .floor-btn.active {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0 20px;
+            color: #fff;
+            font-size: 1rem;
+            background: var(--primary);
+            border-radius: var(--card-radius);
+            margin-top: 40px;
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 25px;
+            border-radius: var(--card-radius);
+            box-shadow: var(--shadow);
+            transform: translateX(200%);
+            transition: transform 0.4s ease;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .dept-nav-btns {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        .dept-nav-btn {
+            background: var(--light);
+            border: 2px solid #e0e6ed;
+            border-radius: 50px;
+            padding: 12px 28px;
+            font-weight: 600;
+            color: var(--secondary);
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(52, 152, 219, 0.07);
+        }
+        .dept-nav-btn:hover, .dept-nav-btn.active {
+            background: var(--secondary);
+            color: #fff;
+            border-color: var(--secondary);
+            box-shadow: 0 4px 16px rgba(52, 152, 219, 0.15);
+        }
+        
+        .floor-plan-placeholder .floor-title span {
+            font-family: 'Montserrat', 'Roboto', Arial, sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 0.5px;
+        }
+       
+        .search-box {
+    position: relative;
+    flex: 1;
+    min-width: 300px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 16px 20px 16px 100px; /* increased left padding for both icons */
+    border: 2px solid #dbe2ef;
+    border-radius: 50px;
+    font-size: 1.1rem;
+    transition: var(--transition);
+}
+
+.search-box input:focus {
+    outline: none;
+    border-color: var(--secondary);
+    box-shadow: 0 0 0 4px rgba(255, 130, 0, 0.15);
+}
+
+.search-box .search-icon-left {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
+.search-box .mic-icon {
+    position: absolute;
+    left: 48px; /* spacing between search icon and mic */
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--primary);
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+/* Mic recording animation */
+@keyframes micPulse {
+    0% {
+        transform: translateY(-50%) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translateY(-50%) scale(1.3);
+        opacity: 0.6;
+    }
+    100% {
+        transform: translateY(-50%) scale(1);
+        opacity: 1;
+    }
+}
+
+.search-box .mic-icon.recording {
+    color: #e74c3c; /* red mic */
+    animation: micPulse 1s infinite;
+}
+ 
+
+
+    .header-layout {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    gap: 20px;
+}
+
+.sharda-logo-left {
+    height: 100%;
+    max-height: 100px;
+    object-fit: contain;
+    border-radius: 0;
+    background: #fff;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0, 33, 71, 0.08);
+}
+
+.header-text {
+    flex: 1;
+    text-align: left;
+}
+
+.header-text h1 {
+    font-size: 2.8rem;
+    color: #fff;
+    margin-bottom: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 8px rgba(0,33,71,0.08);
+}
+
+.header-text p {
+    font-size: 1.2rem;
+    color: var(--secondary);
+    max-width: 700px;
+    line-height: 1.6;
+    font-weight: 500;
+}
+    </style>
+</head>
+<body>
+    <script src="api.js"></script>
+    <script>Auth.requireLogin();</script>
+    <div class="container">
+        <nav class="ce-topnav">
+            <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase</div>
+            <div class="ce-topnav-links">
+                <a href="try.html" class="ce-topnav-link active"><i class="fas fa-map-marked-alt"></i> Campus Navigation</a>
+                <a href="menu.html" class="ce-topnav-link"><i class="fas fa-utensils"></i> Food Ordering</a>
+                <a href="orders.html" class="ce-topnav-link"><i class="fas fa-receipt"></i> My Orders</a>
+                <span class="ce-topnav-user" id="ceTopnavUser"></span>
+                <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+            </div>
+        </nav>
+        <style>
+            .ce-topnav { display: flex; align-items: center; justify-content: space-between; background: var(--primary); color: #fff; padding: 12px 24px; border-radius: var(--card-radius) var(--card-radius) 0 0; flex-wrap: wrap; gap: 12px; }
+            .ce-topnav-brand { font-weight: 700; font-size: 1.15rem; letter-spacing: .5px; }
+            .ce-topnav-links { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+            .ce-topnav-link { color: #dce6f2; text-decoration: none; font-size: 0.92rem; font-weight: 600; padding: 6px 10px; border-radius: 8px; transition: var(--transition); }
+            .ce-topnav-link:hover, .ce-topnav-link.active { background: rgba(255,255,255,0.15); color: #fff; }
+            .ce-topnav-user { color: #ffd9a8; font-size: 0.88rem; font-weight: 600; }
+            .ce-topnav-logout { background: var(--secondary); color: #fff; border: none; padding: 7px 14px; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+            .ce-topnav-logout:hover { opacity: 0.9; }
+        </style>
+        <script>
+            document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Student');
+            if (Auth.isAdmin()) {
+                document.querySelector('.ce-topnav-links').insertAdjacentHTML('afterbegin',
+                    '<a href="admin-orders.html" class="ce-topnav-link"><i class="fas fa-user-shield"></i> Admin Panel</a>');
+            }
+        </script>
+        <header>
+            <div class="header-layout">
+  <img src="ShardaUNi-Logo.jpg" alt="Sharda University Logo" class="sharda-logo-left">
+  <div class="header-text">
+    <h1>Sharda University Campus Map</h1>
+  </div>
+</div>
+        </header>
+        
+        <div class="search-section">
+         <div class="search-box">
+  <i class="fas fa-search search-icon-left"></i>
+  <i class="fas fa-microphone mic-icon" id="micBtn" title="Voice Search"></i>
+  <input type="text" id="searchInput" placeholder="Search for a classroom, building, department, or location...">
+</div>
+</div>
+
+            <div class="filter-group">
+                <button class="filter-btn active" data-dept="all"><i class="fas fa-building"></i> All Schools</button>
+                <button class="filter-btn" data-dept="Engineering"><i class="fas fa-cogs"></i> Sharda School of Engineering & Technology</button>
+                <button class="filter-btn" data-dept="Business"><i class="fas fa-briefcase"></i> Sharda School of Business Studies</button>
+                <button class="filter-btn" data-dept="Basic Sciences"><i class="fas fa-flask"></i> Sharda School of Basic Sciences & Research</button>
+                <button class="filter-btn" data-dept="Allied Health"><i class="fas fa-user-md"></i> Sharda School of Allied Health Sciences</button>
+                <button class="filter-btn" data-dept="Humanities"><i class="fas fa-users"></i> Sharda School of Humanities and Social Sciences</button>
+                <button class="filter-btn" data-dept="Architecture"><i class="fas fa-drafting-compass"></i> Sharda School of Design, Architecture & Planning</button>
+                <button class="filter-btn" data-dept="Media"><i class="fas fa-film"></i> Sharda School of Media, Film and Entertainment</button>
+                <button class="filter-btn" data-dept="Nursing"><i class="fas fa-notes-medical"></i> Sharda School of Nursing Science & Research</button>
+                <button class="filter-btn" data-dept="Law"><i class="fas fa-balance-scale"></i> Sharda School of Law</button>
+                <button class="filter-btn" data-dept="Dental"><i class="fas fa-tooth"></i> Sharda School of Dental Sciences</button>
+                <button class="filter-btn" data-dept="Medical"><i class="fas fa-stethoscope"></i> Sharda School of Medical Sciences & Research</button>
+                <button class="filter-btn" data-dept="Pharmacy"><i class="fas fa-pills"></i> Sharda School of Pharmacy</button>
+            </div>
+        </div>
+        
+        <div class="content-area">
+            <div class="blocks-section">
+                <div class="section-title">
+                    <i class="fas fa-university"></i>
+                    <h2>Campus Buildings</h2>
+                </div>
+                <div class="blocks-grid">
+                    <div class="block-card active">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B1</h3>
+                        <p>5 Floors • 40 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B2</h3>
+                        <p>5 Floors • 38 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B3</h3>
+                        <p>6 Floors • 50 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B4</h3>
+                        <p>4 Floors • 30 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B5</h3>
+                        <p>4 Floors • 28 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B6</h3>
+                        <p>3 Floors • 20 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-building"></i>
+                        </div>
+                        <h3>B7</h3>
+                        <p>3 Floors • 18 Classrooms</p>
+                    </div>
+                    <div class="block-card">
+                        <div class="block-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <h3>Central Library</h3>
+                        <p>5 Floors • 100,000+ Books</p>
+                    </div>
+                </div>
+
+                <section id="classroom-status" style="
+                    background:#fff;
+                    margin-top:25px;
+                    padding:20px;
+                    border-radius:12px;
+                    box-shadow:0 4px 20px rgba(0,0,0,0.08);
+                ">
+                    <h2 style="margin-bottom:15px; color:#002147; font-size:1.3rem;">
+                        Live Classroom Availability
+                    </h2>
+                    <div style="margin-bottom:20px;">
+                        <label style="font-weight:600;">Select Time: </label>
+                        <select id="time-selector" style="padding:6px 10px; border-radius:6px; margin-left:10px;">
+                            <option value="09:00">09:00</option>
+                            <option value="09:20">09:20</option>
+                            <option value="09:40">09:40</option>
+                            <option value="09:50">09:50</option>
+                            <option value="10:00">10:00</option>
+                            <option value="10:30">10:30</option>
+                            <option value="10:50">10:50</option>
+                            <option value="11:00">11:00</option>
+                            <option value="11:30">11:30</option>
+                            <option value="11:40">11:40</option>
+                            <option value="12:00">12:00</option>
+                            <option value="12:30">12:30</option>
+                            <option value="12:40">12:40</option>
+                            <option value="13:00">13:00</option>
+                            <option value="13:30">13:30</option>
+                            <option value="13:40">13:40</option>
+                            <option value="14:00">14:00</option>
+                            <option value="14:30">14:30</option>
+                        </select>
+                        <button id="apply-time"
+                            style="padding:6px 12px; border-radius:6px; margin-left:10px; background:#002147; color:white; border:none;">
+                            Apply
+                        </button>
+                    </div>
+                    <p style="margin-bottom:20px; color:#555;">
+                        Select a building (B1, B2, B3) to view real-time classroom occupancy.
+                    </p>
+                    <div id="classroom-list" style="
+                        display:grid;
+                        grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));
+                        gap:12px;">
+                    </div>
+                </section>
+            </div>
+            
+            <div class="map-section">
+                <div class="map-header">
+                    <div class="section-title">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <h2>Sharda University Campus Map</h2>
+                    </div>
+                                            <div class="map-nav">
+                        <button class="map-nav-btn" id="directionsBtn" onclick="getDirectionsToSelectedBlock()" title="Get walking directions" style="width:auto; padding:0 14px; background:var(--secondary); color:#fff;">
+                            <i class="fas fa-location-arrow"></i> Directions
+                        </button>
+                        <button class="map-nav-btn" id="clearDirectionsBtn" onclick="clearDirections()" title="Close directions" style="width:auto; padding:0 14px; background:#e74c3c; color:#fff; display:none;">
+                            <i class="fas fa-times"></i> Close Directions
+                        </button>
+                        <button class="map-nav-btn" onclick="zoomIn()"><i class="fas fa-search-plus"></i></button>
+                        <button class="map-nav-btn" onclick="zoomOut()"><i class="fas fa-search-minus"></i></button>
+                        <button class="map-nav-btn" onclick="resetMap()"><i class="fas fa-sync-alt"></i></button>
+                    </div>
+                </div>
+                
+                <div class="map-container">
+                    <div id="campus-map"></div>
+                    
+                    <div class="map-placeholder">
+                        <i class="fas fa-map"></i>
+                        <h3>Interactive Campus Map</h3>
+                        <p>Select a building to view detailed floor plans, locate classrooms, and find the best routes between locations. Click on any room for more information.</p>
+                    </div>
+                    
+                    <div class="floor-plan-placeholder active" id="floor-plan-placeholder">
+                        <div class="floor-title">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Please choose a block to view its rooms</span>
+                        </div>
+                        <div class="dept-nav-btns" style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
+                            <button class="dept-nav-btn" data-dept="Engineering"><i class="fas fa-cogs"></i> Engineering</button>
+                            <button class="dept-nav-btn" data-dept="Business"><i class="fas fa-briefcase"></i> Business</button>
+                            <button class="dept-nav-btn" data-dept="Basic Sciences"><i class="fas fa-flask"></i> Basic Sciences</button>
+                            <button class="dept-nav-btn" data-dept="Allied Health"><i class="fas fa-user-md"></i> Allied Health</button>
+                            <button class="dept-nav-btn" data-dept="Humanities"><i class="fas fa-users"></i> Humanities</button>
+                            <button class="dept-nav-btn" data-dept="Architecture"><i class="fas fa-drafting-compass"></i> Architecture</button>
+                            <button class="dept-nav-btn" data-dept="Media"><i class="fas fa-film"></i> Media</button>
+                            <button class="dept-nav-btn" data-dept="Nursing"><i class="fas fa-notes-medical"></i> Nursing</button>
+                            <button class="dept-nav-btn" data-dept="Law"><i class="fas fa-balance-scale"></i> Law</button>
+                            <button class="dept-nav-btn" data-dept="Dental"><i class="fas fa-tooth"></i> Dental</button>
+                            <button class="dept-nav-btn" data-dept="Medical"><i class="fas fa-stethoscope"></i> Medical</button>
+                            <button class="dept-nav-btn" data-dept="Pharmacy"><i class="fas fa-pills"></i> Pharmacy</button>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b1-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B1 Ground Floor - Classrooms 101-115</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">101</div><div class="room-item">102</div><div class="room-item">103</div><div class="room-item">104</div><div class="room-item">105</div><div class="room-item">106</div><div class="room-item">107</div><div class="room-item">108</div><div class="room-item">109</div><div class="room-item">110</div><div class="room-item">111</div><div class="room-item">112</div><div class="room-item">113</div><div class="room-item">114</div><div class="room-item">115</div>
+                            </div></div>
+                            <div class="map-view"><img src="b1.jpg" alt="B1 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b2-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B2 Ground Floor - Classrooms 201-215</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">201</div><div class="room-item">202</div><div class="room-item">203</div><div class="room-item">204</div><div class="room-item">205</div><div class="room-item">206</div><div class="room-item">207</div><div class="room-item">208</div><div class="room-item">209</div><div class="room-item">210</div><div class="room-item">211</div><div class="room-item">212</div><div class="room-item">213</div><div class="room-item">214</div><div class="room-item">215</div>
+                            </div></div>
+                            <div class="map-view"><img src="b2.jpg" alt="B2 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b3-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B3 Ground Floor - Classrooms 001-015</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">001</div><div class="room-item">002</div><div class="room-item">003</div><div class="room-item">004</div><div class="room-item">005</div><div class="room-item highlighted">006</div><div class="room-item">007</div><div class="room-item">008</div><div class="room-item">009</div><div class="room-item">010</div><div class="room-item">011</div><div class="room-item">012</div><div class="room-item">013</div><div class="room-item">014</div><div class="room-item">015</div>
+                            </div></div>
+                            <div class="map-view"><img src="b3.webp" alt="B3 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b4-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B4 Ground Floor - Classrooms 401-415</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">401</div><div class="room-item">402</div><div class="room-item">403</div><div class="room-item">404</div><div class="room-item">405</div><div class="room-item">406</div><div class="room-item">407</div><div class="room-item">408</div><div class="room-item">409</div><div class="room-item">410</div><div class="room-item">411</div><div class="room-item">412</div><div class="room-item">413</div><div class="room-item">414</div><div class="room-item">415</div>
+                            </div></div>
+                            <div class="map-view"><img src="b4.jpeg" alt="B4 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b5-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B5 Ground Floor - Classrooms 501-515</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">501</div><div class="room-item">502</div><div class="room-item">503</div><div class="room-item">504</div><div class="room-item">505</div><div class="room-item">506</div><div class="room-item">507</div><div class="room-item">508</div><div class="room-item">509</div><div class="room-item">510</div><div class="room-item">511</div><div class="room-item">512</div><div class="room-item">513</div><div class="room-item">514</div><div class="room-item">515</div>
+                            </div></div>
+                            <div class="map-view"><img src="b5.jpeg" alt="B5 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b6-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B6 Ground Floor - Classrooms 601-610</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">601</div><div class="room-item">602</div><div class="room-item">603</div><div class="room-item">604</div><div class="room-item">605</div><div class="room-item">606</div><div class="room-item">607</div><div class="room-item">608</div><div class="room-item">609</div><div class="room-item">610</div>
+                            </div></div>
+                            <div class="map-view"><img src="b6.jpeg" alt="B6 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                    <div class="floor-plan" id="b7-ground-floor">
+                        <div class="floor-title"><i class="fas fa-layer-group"></i><span>B7 Ground Floor - Classrooms 701-710</span></div>
+                        <div class="floor-content">
+                            <div class="room-list"><h4>Rooms on this floor</h4><div class="room-grid">
+                                <div class="room-item">701</div><div class="room-item">702</div><div class="room-item">703</div><div class="room-item">704</div><div class="room-item">705</div><div class="room-item">706</div><div class="room-item">707</div><div class="room-item">708</div><div class="room-item">709</div><div class="room-item">710</div>
+                            </div></div>
+                            <div class="map-view"><img src="b7.avif" alt="B7 Ground Floor plan" class="map-image"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="floors-selector">
+                    <button class="floor-btn active">Ground Floor</button>
+                    <button class="floor-btn">1st Floor</button>
+                    <button class="floor-btn">2nd Floor</button>
+                    <button class="floor-btn">3rd Floor</button>
+                    <button class="floor-btn">4th Floor</button>
+                    <button class="floor-btn">5th Floor</button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Sharda University Campus Map &copy; 2025 • Interactive Campus Navigation System</p>
+        </footer>
+        
+        <div class="notification" id="notification">
+            Room 006 selected. Showing location on the map.
+        </div>
+    </div>
+
+        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script>
+        
+        // Campus map initialization
+        let campusMap;
+                let markers = [];
+        let routingControl = null;
+
+        // Sharda University campus data
+        const campusData = {
+            center: [28.47292, 77.48432],
+            buildings: [
+                { name: "B1", coords: [28.47254780095779, 77.48492828304789], description: "5 Floors • 40 Classrooms", icon: "fas fa-building" },
+                { name: "B2", coords: [28.47275244457872, 77.48449593599253], description: "5 Floors • 38 Classrooms", icon: "fas fa-building" },
+                { name: "B3", coords: [28.473186092850252, 77.48443496400797], description: "6 Floors • 50 Classrooms", icon: "fas fa-building" },
+                { name: "B4", coords: [28.472293620702388, 77.48342724031725], description: "4 Floors • 30 Classrooms", icon: "fas fa-building" },
+                { name: "B5", coords: [28.47369326948614, 77.48414449975061], description: "4 Floors • 28 Classrooms", icon: "fas fa-building" },
+                { name: "B6", coords: [28.474600222043026, 77.48268084559565], description: "3 Floors • 20 Classrooms", icon: "fas fa-building" },
+                { name: "B7", coords: [28.47131, 77.48189], description: "3 Floors • 18 Classrooms", icon: "fas fa-building" },
+                { name: "Central Library", coords: [28.473058489293113, 77.4799154308081], description: "5 Floors • 100,000+ Books", icon: "fas fa-book" }
+            ]
+        };
+
+        // Initialize the map
+        function initMap() {
+            campusMap = L.map('campus-map').setView(campusData.center, 17);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(campusMap);
+
+            // Add campus boundary
+            const campusBoundary = L.circle(campusData.center, {
+                color: '#3498db',
+                fillColor: '#3498db',
+                fillOpacity: 0.1,
+                radius: 200
+            }).addTo(campusMap);
+
+            // Add building markers
+            campusData.buildings.forEach((building, index) => {
+                const marker = L.marker(building.coords).addTo(campusMap);
+                markers.push(marker);
+                
+                const popupContent = `
+                    <div style="text-align: center; min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0; color: #2c3e50;">${building.name}</h3>
+                        <p style="margin: 0; color: #7f8c8d; font-size: 14px;">${building.description}</p>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                
+                marker.on('click', () => {
+                    showNotification(`Selected: ${building.name}`);
+                    highlightBuilding(index);
+                });
+            });
+        }
+
+        // Map control functions
+        function zoomIn() {
+            campusMap.zoomIn();
+            showNotification("Zoomed in");
+        }
+
+        function zoomOut() {
+            campusMap.zoomOut();
+            showNotification("Zoomed out");
+        }
+
+                function resetMap() {
+            campusMap.setView(campusData.center, 17);
+            showNotification("Map reset to campus center");
+        }
+
+        function getDirectionsToSelectedBlock() {
+            if (!window.lastSelectedBlock) {
+                showNotification("Select a building first, then tap Directions.");
+                return;
+            }
+            const building = campusData.buildings.find(b => b.name === window.lastSelectedBlock);
+            if (!building) {
+                showNotification("Couldn't find that building's location.");
+                return;
+            }
+            if (!navigator.geolocation) {
+                showNotification("Your browser doesn't support location access.");
+                return;
+            }
+
+            const btn = document.getElementById('directionsBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Locating...';
+            btn.disabled = true;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const studentLatLng = [position.coords.latitude, position.coords.longitude];
+                    drawRoute(studentLatLng, building.coords, building.name);
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                },
+                (error) => {
+                    let msg = "Couldn't get your location.";
+                    if (error.code === error.PERMISSION_DENIED) {
+                        msg = "Location access was denied. Please allow location access and try again.";
+                    }
+                    showNotification(msg);
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+                function drawRoute(fromLatLng, toLatLng, buildingName) {
+            if (routingControl) {
+                campusMap.removeControl(routingControl);
+                routingControl = null;
+            }
+            routingControl = L.Routing.control({
+                waypoints: [L.latLng(fromLatLng), L.latLng(toLatLng)],
+                profile: 'foot',
+                lineOptions: { styles: [{ color: '#ff8200', weight: 5 }] },
+                addWaypoints: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: true,
+                show: true,
+                createMarker: function (i, wp) {
+                    return L.marker(wp.latLng);
+                }
+            }).addTo(campusMap);
+            document.getElementById('clearDirectionsBtn').style.display = 'inline-block';
+            showNotification(`Showing walking route to ${buildingName}`);
+        }
+
+        function clearDirections() {
+            if (routingControl) {
+                campusMap.removeControl(routingControl);
+                routingControl = null;
+            }
+            document.getElementById('clearDirectionsBtn').style.display = 'none';
+            showNotification("Directions closed.");
+        }
+
+        // Highlight building on map when card is clicked
+        function highlightBuilding(buildingIndex) {
+            const building = campusData.buildings[buildingIndex];
+            campusMap.setView(building.coords, 18);
+            
+            // Add a temporary highlight effect
+            const highlight = L.circle(building.coords, {
+                color: '#e74c3c',
+                fillColor: '#e74c3c',
+                fillOpacity: 0.3,
+                radius: 50
+            }).addTo(campusMap);
+            
+            setTimeout(() => {
+                campusMap.removeLayer(highlight);
+            }, 2000);
+        }
+
+        // Initialize map when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            // Attach click handlers for department nav buttons in placeholder
+            document.querySelectorAll('.dept-nav-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const dept = btn.getAttribute('data-dept');
+                    // Trigger department filter
+                    filterBlocksByDepartment(dept);
+                    // Also activate the corresponding filter button at the top
+                    document.querySelectorAll('.filter-btn').forEach(fb => {
+                        if (fb.getAttribute('data-dept') === dept) {
+                            fb.classList.add('active');
+                        } else {
+                            fb.classList.remove('active');
+                        }
+                    });
+                    showNotification(`Now viewing: ${dept} department`);
+                });
+            });
+        });
+
+        // Notification function
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Block card interaction
+        const blockCards = document.querySelectorAll('.block-card');
+        const floorPlanPlaceholder = document.getElementById('floor-plan-placeholder');
+        const b3FloorPlan = document.getElementById('b3-ground-floor');
+        // Hide all floor plans except placeholder by default
+        function showFloorPlanForBlock(blockName) {
+    // Hide all floor plans
+    floorPlanPlaceholder.classList.add('active');
+    document.querySelectorAll('.floor-plan').forEach(fp => fp.classList.remove('active'));
+    if (!blockName) return;
+    const id = blockName.toLowerCase() + '-ground-floor';
+    const plan = document.getElementById(id);
+    if (plan) {
+        floorPlanPlaceholder.classList.remove('active');
+        plan.classList.add('active');
+    }
+    // Leaflet caches its container size at load time; if the layout shifts at all,
+    // its tiles go stale/blank until it's told to re-measure itself.
+    if (typeof campusMap !== 'undefined' && campusMap) {
+        setTimeout(() => campusMap.invalidateSize(), 200);
+    }
+}
+        // Initial state: show placeholder
+        showFloorPlanForBlock(null);
+        blockCards.forEach((card, index) => {
+            card.addEventListener('click', () => {
+                blockCards.forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+                const buildingName = card.querySelector('h3').textContent;
+                showNotification(`Now viewing: ${buildingName}`);
+                // Find and highlight corresponding building on map
+                const buildingIndex = campusData.buildings.findIndex(b => b.name === buildingName);
+                if (buildingIndex !== -1) {
+                    highlightBuilding(buildingIndex);
+                }
+                showFloorPlanForBlock(buildingName);
+            });
+        });
+        
+        // Room selection
+        const roomItems = document.querySelectorAll('.room-item');
+        roomItems.forEach(room => {
+            room.addEventListener('click', () => {
+                roomItems.forEach(r => r.classList.remove('highlighted'));
+                room.classList.add('highlighted');
+                
+                const roomNumber = room.textContent;
+                showNotification(`Room ${roomNumber} selected. Showing location on the map.`);
+            });
+        });
+        
+        // Floor selection
+        const floorBtns = document.querySelectorAll('.floor-btn');
+        floorBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                floorBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const floorName = btn.textContent;
+                showNotification(`Now viewing: ${floorName}`);
+            });
+        });
+        
+        // Department to blocks mapping
+        const departmentBlocks = {
+            'Engineering': ['B1', 'B2', 'B3'],
+            'Business': ['B7'],
+            'Basic Sciences': ['B7'],
+            'Allied Health': ['B6'],
+            'Humanities': ['B7'],
+            'Architecture': ['B4'],
+            'Media': ['B7'],
+            'Nursing': ['B4'],
+            'Law': ['B7'],
+            'Dental': ['B5'],
+            'Medical': ['B6'],
+            'Pharmacy': ['B7']
+        };
+
+        // Department filter functionality
+        const deptBtns = document.querySelectorAll('.filter-btn');
+        deptBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                deptBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const dept = btn.getAttribute('data-dept');
+                filterBlocksByDepartment(dept);
+                showNotification(dept === 'all' ? 'Showing all departments' : `Now viewing: ${dept} department`);
+            });
+        });
+
+        function filterBlocksByDepartment(dept) {
+            const blockCards = document.querySelectorAll('.block-card');
+            if (dept === 'all') {
+                blockCards.forEach(card => card.style.display = '');
+                markers.forEach(marker => marker.addTo(campusMap));
+                return;
+            }
+            const allowedBlocks = departmentBlocks[dept] || [];
+            blockCards.forEach(card => {
+                const blockName = card.querySelector('h3').textContent;
+                if (allowedBlocks.includes(blockName)) {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+            // Hide all markers, show only those for allowed blocks
+            campusData.buildings.forEach((building, i) => {
+                if (allowedBlocks.includes(building.name)) {
+                    markers[i].addTo(campusMap);
+                } else {
+                    campusMap.removeLayer(markers[i]);
+                }
+            });
+        }
+        
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            // Search for department
+            let foundDept = Object.keys(departmentBlocks).find(dept => dept.toLowerCase().includes(query));
+            if (foundDept) {
+    document.querySelector(`.filter-btn[data-dept="${foundDept}"]`)?.click();
+    return;
+}
+
+            // Search for block
+            const match = campusData.buildings.find(b => b.name.toLowerCase().includes(query));
+            if (match) {
+                const buildingIndex = campusData.buildings.indexOf(match);
+                highlightBuilding(buildingIndex);
+                showNotification(`Found: ${match.name}`);
+            }
+        });
+        
+        // Simulate initial notification
+        setTimeout(() => {
+            showNotification("Welcome to Sharda University Campus Map! Select a building to get started.");
+        }, 1000);
+
+        document.getElementById('searchInput').addEventListener('input', function () {
+    const query = this.value.toLowerCase().trim();
+
+    const deptKeywords = {
+        "engineering": "Engineering",
+        "school of engineering": "Engineering",
+        "sharda school of engineering": "Engineering",
+        "business": "Business",
+        "school of business": "Business",
+        "sharda school of business": "Business",
+        "basic sciences": "Basic Sciences",
+        "school of basic sciences": "Basic Sciences",
+        "sharda school of basic sciences": "Basic Sciences",
+        "allied health": "Allied Health",
+        "school of allied health": "Allied Health",
+        "sharda school of allied health": "Allied Health",
+        "humanities": "Humanities",
+        "school of humanities": "Humanities",
+        "sharda school of humanities": "Humanities",
+        "architecture": "Architecture",
+        "design": "Architecture",
+        "planning": "Architecture",
+        "school of architecture": "Architecture",
+        "school of design": "Architecture",
+        "media": "Media",
+        "film": "Media",
+        "entertainment": "Media",
+        "school of media": "Media",
+        "nursing": "Nursing",
+        "school of nursing": "Nursing",
+        "nursing science": "Nursing",
+        "law": "Law",
+        "school of law": "Law",
+        "dental": "Dental",
+        "school of dental": "Dental",
+        "medical": "Medical",
+        "school of medical": "Medical",
+        "pharmacy": "Pharmacy",
+        "school of pharmacy": "Pharmacy"
+    };
+
+    for (const keyword in deptKeywords) {
+        if (query.includes(keyword)) {
+            const targetDept = deptKeywords[keyword];
+            const button = document.querySelector(`.filter-btn[data-dept="${targetDept}"]`);
+            if (button) {
+                button.click(); // simulates actual button click (triggers all existing logic)
+                break;
+            }
+        }
+    }
+});
+
+// Voice search using Web Speech API
+const micBtn = document.getElementById('micBtn');
+const searchInput = document.getElementById('searchInput');
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    micBtn.addEventListener('click', () => {
+        recognition.start();
+        micBtn.classList.add('recording'); // start red + animation
+        showNotification("Listening...");
+    });
+
+    recognition.addEventListener('result', (event) => {
+        const transcript = event.results[0][0].transcript;
+        searchInput.value = transcript;
+        searchInput.dispatchEvent(new Event('input')); // triggers search logic
+        showNotification(`You said: "${transcript}"`);
+        micBtn.classList.remove('recording');
+    });
+
+    recognition.addEventListener('end', () => {
+        micBtn.classList.remove('recording');
+    });
+
+    recognition.addEventListener('error', (event) => {
+        showNotification("Voice recognition error: " + event.error);
+        micBtn.classList.remove('recording');
+    });
+}
+
+
+    </script>
+</body>
+</html>
+
+<script>
+// 🔥 TEST MODE — SET ANY TIME YOU WANT (24-hour format)
+// Example: TEST_TIME = "10:00" → simulates time = 10:00 AM
+// Set TEST_TIME = null → to use REAL TIME
+let TEST_TIME = null; // default: real time
+// When user selects a time
+document.getElementById("apply-time").addEventListener("click", () => {
+    TEST_TIME = document.getElementById("time-selector").value;
+    alert("Time set to " + TEST_TIME);
+
+    // refresh current visible block automatically
+    if (window.lastSelectedBlock) {
+        showLiveStatus(window.lastSelectedBlock);
+    }
+    // Show block image for B1–B7
+
+});
+
+
+
+// ======================
+// CLASSROOM DATA (same as before)
+// ======================
+const blocks = {
+    B1: [
+        { name: "C1", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C2", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:true},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C3", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C4", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:true},
+            {start:"16:10",end:"16:40",empty:false}
+        ]}
+    ],
+
+    B2: [
+        { name: "C5", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C6", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C7", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:true},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:true},
+            {start:"16:10",end:"16:40",empty:false}
+        ]},
+        { name: "C8", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:true},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C9", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:true},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:false}
+        ]}
+    ],
+
+    B3: [
+        { name: "C10", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:true},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C11", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:true},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C12", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C13", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:true},
+            {start:"13:40",end:"14:30",empty:true},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:false}
+        ]},
+        { name: "C14", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:false},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:false},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:true},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C15", slots:[
+            {start:"09:00",end:"09:40",empty:true},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:true},
+            {start:"11:40",end:"12:30",empty:true},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:false},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:true}
+        ]},
+        { name: "C16", slots:[
+            {start:"09:00",end:"09:40",empty:false},
+            {start:"09:50",end:"10:40",empty:true},
+            {start:"10:50",end:"11:30",empty:false},
+            {start:"11:40",end:"12:30",empty:true},
+            {start:"12:40",end:"13:30",empty:false},
+            {start:"13:40",end:"14:30",empty:false},
+
+            {start:"14:30",end:"15:20",empty:true},
+            {start:"15:20",end:"16:10",empty:false},
+            {start:"16:10",end:"16:40",empty:false}
+        ]}
+    ]
+};
+
+
+
+// ==========================
+// TIME CHECK LOGIC (WITH TEST MODE)
+// ==========================
+function isCurrent(slot) {
+    let hours, minutes;
+
+    if (TEST_TIME) {
+        [hours, minutes] = TEST_TIME.split(":").map(Number);
+    } else {
+        const now = new Date();
+        hours = now.getHours();
+        minutes = now.getMinutes();
+    }
+
+    const current = hours * 60 + minutes;
+
+    // 🔥 After 4:40 PM (16:40 = 1000 mins) → always show "No ongoing class"
+    if (current >= (16 * 60 + 40)) {
+        return false;
+    }
+
+    const [sh, sm] = slot.start.split(":").map(Number);
+    const [eh, em] = slot.end.split(":").map(Number);
+
+    return current >= sh * 60 + sm && current < eh * 60 + em;
+}
+
+
+
+
+// ==========================
+// RENDER CLASSROOM STATUS
+// ==========================
+function showLiveStatus(block) {
+    const list = document.getElementById("classroom-list");
+    list.innerHTML = "";
+
+    blocks[block].forEach(room => {
+        let status = "No ongoing class";
+        let isEmpty = true;
+
+        for (const slot of room.slots) {
+            if (isCurrent(slot)) {
+                status = slot.empty ? "Empty" : "Occupied";
+                isEmpty = slot.empty;
+                break;
+            }
+        }
+
+        const card = document.createElement("div");
+        card.style.cssText = `
+            background:white;
+            padding:15px;
+            border-radius:10px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.1);
+            display:flex;
+            justify-content:space-between;
+            font-weight:600;
+        `;
+
+        card.innerHTML = `
+            <span>${room.name}</span>
+            <span style="color:${isEmpty ? "green" : "red"}">${status}</span>
+        `;
+
+        card.onclick = () => alert(`${room.name} is ${status} right now`);
+
+        list.appendChild(card);
+    });
+}
+
+
+
+// ==========================
+// CONNECT TO YOUR REAL BUTTONS
+// ==========================
+document.querySelectorAll(".block-card").forEach(card => {
+    card.addEventListener("click", () => {
+        const block = card.querySelector("h3").textContent.trim();
+
+        // Save last block
+        window.lastSelectedBlock = block;
+
+        // Show classrooms only for B1–B3
+        if (["B1", "B2", "B3"].includes(block)) {
+            showLiveStatus(block);
+        }
+
+    });
+});
+
+
+</script>

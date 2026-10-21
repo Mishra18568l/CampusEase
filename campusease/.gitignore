@@ -1,0 +1,39 @@
+
+# Spring Boot / Maven build files
+target/
+**/target/
+*.class
+*.jar
+*.war
+
+# Sensitive application configuration
+application.properties
+**/application.properties
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Temporary files
+*.tmp
+*.bak

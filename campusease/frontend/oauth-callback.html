@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Signing you in... - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    body { font-family: 'Montserrat', Arial, sans-serif; background: #e3f0ff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    .box { background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,33,71,0.12); text-align: center; max-width: 400px; }
+    .box i { font-size: 2.5rem; color: #002147; margin-bottom: 16px; }
+    .box p { color: #5a6b82; }
+    .error { color: #e74c3c; }
+</style>
+</head>
+<body>
+<script src="api.js"></script>
+<div class="box">
+    <i class="fas fa-spinner fa-spin" id="statusIcon"></i>
+    <h2 id="statusTitle">Signing you in...</h2>
+    <p id="statusText">Please wait a moment.</p>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+const userId = params.get('userId');
+const username = params.get('username');
+const email = params.get('email');
+const role = params.get('role');
+const oauthError = params.get('oauthError');
+
+if (oauthError) {
+    document.getElementById('statusIcon').className = 'fas fa-triangle-exclamation error';
+    document.getElementById('statusTitle').textContent = 'Sign-in failed';
+    document.getElementById('statusText').textContent = decodeURIComponent(oauthError);
+    setTimeout(() => { window.location.href = 'index.html'; }, 3000);
+} else if (token && username && role) {
+    Auth.saveSession({
+        token: token,
+        userId: userId,
+        username: decodeURIComponent(username),
+        email: decodeURIComponent(email || ''),
+        role: role
+    });
+    const dest = role === 'ROLE_ADMIN' ? 'admin-orders.html'
+               : role === 'ROLE_VENDOR' ? 'vendor-orders.html'
+               : 'try.html';
+    document.getElementById('statusTitle').textContent = 'Signed in!';
+    document.getElementById('statusText').textContent = 'Redirecting...';
+    setTimeout(() => { window.location.href = dest; }, 600);
+} else {
+    document.getElementById('statusIcon').className = 'fas fa-triangle-exclamation error';
+    document.getElementById('statusTitle').textContent = 'Something went wrong';
+    document.getElementById('statusText').textContent = 'Missing sign-in information. Please try again.';
+    setTimeout(() => { window.location.href = 'index.html'; }, 2500);
+}
+</script>
+</body>
+</html>

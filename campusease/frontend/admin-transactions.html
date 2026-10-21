@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin - Transactions - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireAdmin();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase Admin</div>
+        <div class="ce-topnav-links">
+            <a href="admin-menu.html" class="ce-topnav-link"><i class="fas fa-utensils"></i> Manage Menu</a>
+            <a href="admin-orders.html" class="ce-topnav-link"><i class="fas fa-clipboard-list"></i> Manage Orders</a>
+            <a href="admin-transactions.html" class="ce-topnav-link active"><i class="fas fa-receipt"></i> Transactions</a>
+            <a href="try.html" class="ce-topnav-link"><i class="fas fa-map-marked-alt"></i> Navigation</a>
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-receipt"></i> Transactions</h1>
+        <p>Every order's payment, and how much each shop has collected.</p>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div class="admin-grid" id="summaryGrid">
+        <div class="stat-card"><div class="stat-value" id="statCollected">-</div><div class="stat-label">Total Collected</div></div>
+        <div class="stat-card"><div class="stat-value" id="statRefunded">-</div><div class="stat-label">Total Refunded</div></div>
+        <div class="stat-card"><div class="stat-value" id="statNet">-</div><div class="stat-label">Net Revenue</div></div>
+    </div>
+
+    <div class="page-header" style="padding-bottom:8px;">
+        <h1 style="font-size:1.2rem;"><i class="fas fa-store"></i> Per-Shop Totals</h1>
+    </div>
+    <table class="admin-table" id="shopTotalsTable">
+        <thead><tr><th>Shop</th><th>Collected</th></tr></thead>
+        <tbody id="shopTotalsBody"><tr><td colspan="2">Loading...</td></tr></tbody>
+    </table>
+
+    <div class="page-header" style="padding-bottom:8px;">
+        <h1 style="font-size:1.2rem;"><i class="fas fa-list"></i> All Transactions</h1>
+    </div>
+    <table class="admin-table">
+        <thead>
+            <tr><th>Order</th><th>Student</th><th>Shop</th><th>Amount</th><th>Payment Status</th><th>Order Status</th><th>Date</th></tr>
+        </thead>
+        <tbody id="transactionsBody">
+            <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function loadTransactions() {
+    try {
+        const data = await apiFetch('/admin/transactions');
+
+        document.getElementById('statCollected').textContent = '₹' + Number(data.totalCollected).toFixed(2);
+        document.getElementById('statRefunded').textContent = '₹' + Number(data.totalRefunded).toFixed(2);
+        document.getElementById('statNet').textContent = '₹' + Number(data.netRevenue).toFixed(2);
+
+        const shopBody = document.getElementById('shopTotalsBody');
+        const shopEntries = Object.entries(data.perShopTotals || {});
+        shopBody.innerHTML = shopEntries.length
+            ? shopEntries.map(([name, total]) => `<tr><td>${escapeHtml(name)}</td><td>₹${Number(total).toFixed(2)}</td></tr>`).join('')
+            : '<tr><td colspan="2">No shops with collections yet.</td></tr>';
+
+        const txBody = document.getElementById('transactionsBody');
+        const orders = data.orders || [];
+        txBody.innerHTML = orders.length
+            ? orders.map(o => `
+                <tr>
+                    <td>#${o.id}</td>
+                    <td>${escapeHtml(o.user ? o.user.username : '-')}</td>
+                    <td>${o.shop ? escapeHtml(o.shop.shopName) : '-'}</td>
+                    <td>₹${o.totalAmount.toFixed(2)}</td>
+                    <td><span class="status-pill ${paymentPillClass(o.paymentStatus)}">${o.paymentStatus}</span></td>
+                    <td><span class="status-pill status-${o.orderStatus}">${o.orderStatus}</span></td>
+                    <td>${new Date(o.createdAt).toLocaleString()}</td>
+                </tr>
+            `).join('')
+            : '<tr><td colspan="7">No transactions yet.</td></tr>';
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+function paymentPillClass(status) {
+    if (status === 'PAID') return 'status-DELIVERED';
+    if (status === 'REFUNDED') return 'status-REJECTED';
+    if (status === 'FAILED') return 'status-REJECTED';
+    return 'status-PENDING';
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Admin');
+loadTransactions();
+</script>
+</body>
+</html>

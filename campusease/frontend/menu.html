@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Food Menu - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireLogin();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase</div>
+        <div class="ce-topnav-links">
+            <a href="try.html" class="ce-topnav-link"><i class="fas fa-map-marked-alt"></i> Campus Navigation</a>
+            <a href="menu.html" class="ce-topnav-link active"><i class="fas fa-utensils"></i> Food Ordering</a>
+            <a href="cart.html" class="ce-topnav-link"><i class="fas fa-shopping-cart"></i> Cart <span class="cart-badge" id="navCartCount">0</span></a>
+            <a href="orders.html" class="ce-topnav-link"><i class="fas fa-receipt"></i> My Orders</a>
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-utensils"></i> Campus Cafeteria Menu</h1>
+        <p>Browse today's menu, filter by category, and order online.</p>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div class="food-toolbar">
+        <div class="food-search">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" placeholder="Search for food...">
+        </div>
+        <button class="filter-chip" id="vegOnlyChip">🟢 Veg only</button>
+    </div>
+
+    <div class="food-toolbar" style="padding-top:0;">
+        <strong style="font-size:0.85rem;color:#5a6b82;">Shop:</strong>
+        <button class="filter-chip active" data-shop="all">All Shops</button>
+        <span id="shopChips"></span>
+    </div>
+
+    <div class="food-toolbar" style="padding-top:0;">
+        <strong style="font-size:0.85rem;color:#5a6b82;">Category:</strong>
+        <button class="filter-chip active" data-cat="all">All</button>
+        <span id="categoryChips"></span>
+    </div>
+
+        <div class="food-grid" id="foodGrid">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading menu...</div>
+    </div>
+</div>
+
+<!-- Reviews modal -->
+<div class="modal-overlay" id="reviewsModal">
+    <div class="modal-box" style="max-width:480px;">
+        <h3 id="reviewsFoodName">Reviews</h3>
+        <div id="reviewsListWrap" style="max-height:400px; overflow-y:auto; margin:14px 0;"></div>
+        <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeReviewsModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Chatbot widget -->
+<div id="chatbotBubble" onclick="toggleChatbot()" style="
+    position:fixed; bottom:24px; right:24px; width:58px; height:58px; border-radius:50%;
+    background:var(--secondary); color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:1.4rem; cursor:pointer; box-shadow:0 6px 18px rgba(0,33,71,0.25); z-index:998;">
+    <i class="fas fa-comment-dots"></i>
+</div>
+<div id="chatbotPanel" style="
+    display:none; position:fixed; bottom:92px; right:24px; width:320px; max-width:calc(100vw - 48px);
+    height:420px; background:#fff; border-radius:14px; box-shadow:0 10px 40px rgba(0,0,0,0.2);
+    flex-direction:column; overflow:hidden; z-index:998;">
+    <div style="background:var(--primary); color:#fff; padding:14px 16px; font-weight:700; display:flex; justify-content:space-between; align-items:center;">
+        <span><i class="fas fa-robot"></i> Food Finder</span>
+        <i class="fas fa-times" style="cursor:pointer;" onclick="toggleChatbot()"></i>
+    </div>
+    <div id="chatMessages" style="flex:1; overflow-y:auto; padding:14px; font-size:0.88rem;">
+        <div style="background:#f0f4f8; padding:10px 12px; border-radius:10px; margin-bottom:10px; max-width:85%;">
+            Hi! Ask me things like "which shop has good biryani" and I'll check the ratings for you.
+        </div>
+    </div>
+    <div style="display:flex; border-top:1px solid #eef2f7; padding:10px;">
+        <input type="text" id="chatInput" placeholder="Ask about a food item..."
+            style="flex:1; border:1px solid #d8e2ef; border-radius:8px; padding:8px 10px; font-size:0.85rem;"
+            onkeydown="if(event.key==='Enter') sendChatMessage();">
+        <button onclick="sendChatMessage()" class="btn btn-primary" style="margin-left:8px; padding:8px 14px;">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</div>
+
+<script>
+let allFoods = [];
+let categories = [];
+let shops = [];
+let activeCategory = 'all';
+let activeShop = 'all';
+let vegOnly = false;
+
+async function init() {
+    document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Student');
+if (Auth.isAdmin()) { document.querySelector('.ce-topnav-links').insertAdjacentHTML('afterbegin', '<a href="admin-orders.html" class="ce-topnav-link"><i class="fas fa-user-shield"></i> Admin Panel</a>'); }
+    updateCartBadge();
+    try {
+        categories = await apiFetch('/categories');
+        renderCategoryChips();
+        shops = await apiFetch('/shops');
+        renderShopChips();
+        allFoods = await apiFetch('/foods');
+        renderFoods(allFoods);
+    } catch (err) {
+        showError(err.message);
+        document.getElementById('foodGrid').innerHTML =
+            '<div class="empty-state"><i class="fas fa-plug"></i>Could not load the menu. Is the backend running?</div>';
+    }
+}
+
+function renderCategoryChips() {
+    const wrap = document.getElementById('categoryChips');
+    wrap.innerHTML = categories.map(c =>
+        `<button class="filter-chip" data-cat="${c.id}">${escapeHtml(c.categoryName)}</button>`
+    ).join('');
+}
+
+function renderShopChips() {
+    const wrap = document.getElementById('shopChips');
+    wrap.innerHTML = shops.map(s =>
+        `<button class="filter-chip" data-shop="${s.id}"><i class="fas fa-store"></i> ${escapeHtml(s.shopName)}</button>`
+    ).join('');
+}
+
+function renderFoods(foods) {
+    const grid = document.getElementById('foodGrid');
+    if (!foods.length) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-utensils"></i>No food items match your search.</div>';
+        return;
+    }
+    grid.innerHTML = foods.map(f => {
+        const vegClass = f.vegetarian ? 'veg-dot' : 'veg-dot nonveg-dot';
+        const img = f.imageUrl
+            ? `<img src="${escapeHtml(f.imageUrl)}" alt="${escapeHtml(f.foodName)}">`
+            : `<i class="fas fa-utensils"></i>`;
+        const available = f.availability !== false;
+        return `
+        <div class="food-card">
+            <div class="food-card-img">${img}</div>
+            <div class="food-card-body">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="${vegClass}"></span>
+                    <h3>${escapeHtml(f.foodName)}</h3>
+                </div>
+                ${f.shop ? `<div style="font-size:0.75rem;color:#ff8200;font-weight:700;"><i class="fas fa-store"></i> ${escapeHtml(f.shop.shopName)}</div>` : ''}
+                <p class="desc">${escapeHtml(f.description || '')}</p>
+                                <div class="food-card-meta">
+                    <span><i class="fas fa-clock"></i> ${f.preparationTime || '--'} min</span>
+                    <span style="cursor:pointer;" onclick="openReviewsModal(${f.id}, '${escapeHtml(f.foodName).replace(/'/g, "\\'")}')">
+                        <i class="fas fa-star" style="color:#f5b301;"></i> ${f.rating ? f.rating.toFixed(1) : 'No ratings'} <i class="fas fa-chevron-right" style="font-size:0.65rem;"></i>
+                    </span>
+                </div>
+            </div>
+            <div class="food-card-footer">
+                <span class="food-price">₹${f.price.toFixed(2)}</span>
+                ${available
+                    ? `<button class="btn btn-primary" onclick="addToCart(${f.id}, this)"><i class="fas fa-cart-plus"></i> Add</button>`
+                    : `<span class="unavailable-badge">Unavailable</span>`}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function applyFilters() {
+    let list = allFoods;
+    if (activeCategory !== 'all') {
+        list = list.filter(f => f.category && String(f.category.id) === String(activeCategory));
+    }
+    if (activeShop !== 'all') {
+        list = list.filter(f => f.shop && String(f.shop.id) === String(activeShop));
+    }
+    if (vegOnly) {
+        list = list.filter(f => f.vegetarian);
+    }
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (q) {
+        list = list.filter(f => f.foodName.toLowerCase().includes(q));
+    }
+    renderFoods(list);
+}
+
+document.getElementById('searchInput').addEventListener('input', applyFilters);
+document.getElementById('vegOnlyChip').addEventListener('click', function () {
+    vegOnly = !vegOnly;
+    this.classList.toggle('active', vegOnly);
+    applyFilters();
+});
+document.addEventListener('click', function (e) {
+    const catChip = e.target.closest('.filter-chip[data-cat]');
+    if (catChip) {
+        document.querySelectorAll('.filter-chip[data-cat]').forEach(c => c.classList.remove('active'));
+        catChip.classList.add('active');
+        activeCategory = catChip.dataset.cat;
+        applyFilters();
+        return;
+    }
+    const shopChip = e.target.closest('.filter-chip[data-shop]');
+    if (shopChip) {
+        document.querySelectorAll('.filter-chip[data-shop]').forEach(c => c.classList.remove('active'));
+        shopChip.classList.add('active');
+        activeShop = shopChip.dataset.shop;
+        applyFilters();
+    }
+});
+
+async function addToCart(foodId, btn) {
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        await apiFetch('/cart/add', { method: 'POST', body: { foodId: foodId, quantity: 1 } });
+        btn.innerHTML = '<i class="fas fa-check"></i> Added';
+        updateCartBadge();
+        setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 900);
+    } catch (err) {
+        showError(err.message);
+        btn.innerHTML = original;
+        btn.disabled = false;
+    }
+}
+
+async function updateCartBadge() {
+    try {
+        const cart = await apiFetch('/cart');
+        const count = (cart.items || []).reduce((sum, i) => sum + i.quantity, 0);
+        document.getElementById('navCartCount').textContent = count;
+    } catch (e) { /* ignore badge errors */ }
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+// ===== Reviews modal =====
+async function openReviewsModal(foodId, foodName) {
+    document.getElementById('reviewsFoodName').textContent = 'Reviews for ' + foodName;
+    const wrap = document.getElementById('reviewsListWrap');
+    wrap.innerHTML = '<p style="color:#8a97a8;">Loading...</p>';
+    document.getElementById('reviewsModal').classList.add('open');
+    try {
+        const reviews = await apiFetch('/reviews/food/' + foodId, { auth: false });
+        if (!reviews.length) {
+            wrap.innerHTML = '<p style="color:#8a97a8;">No reviews yet. Be the first to order and rate this!</p>';
+            return;
+        }
+        wrap.innerHTML = reviews.map(r => `
+            <div style="border-bottom:1px solid #eef2f7; padding:10px 0;">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>${escapeHtml(r.username)}</strong>
+                    <span style="color:#f5b301;">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</span>
+                </div>
+                ${r.comment ? `<p style="color:#5a6b82; font-size:0.85rem; margin-top:4px;">${escapeHtml(r.comment)}</p>` : ''}
+                <span style="color:#b0bac6; font-size:0.75rem;">${new Date(r.createdAt).toLocaleDateString()}</span>
+            </div>
+        `).join('');
+    } catch (err) {
+        wrap.innerHTML = '<p style="color:#e74c3c;">Could not load reviews.</p>';
+    }
+}
+
+function closeReviewsModal() {
+    document.getElementById('reviewsModal').classList.remove('open');
+}
+
+// ===== Chatbot widget =====
+function toggleChatbot() {
+    const panel = document.getElementById('chatbotPanel');
+    panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+}
+
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    if (!message) return;
+    const messages = document.getElementById('chatMessages');
+
+    messages.insertAdjacentHTML('beforeend', `
+        <div style="background:var(--primary); color:#fff; padding:10px 12px; border-radius:10px; margin-bottom:10px; max-width:85%; margin-left:auto;">
+            ${escapeHtml(message)}
+        </div>`);
+    input.value = '';
+    messages.scrollTop = messages.scrollHeight;
+
+    const thinkingId = 'thinking-' + Date.now();
+    messages.insertAdjacentHTML('beforeend', `
+        <div id="${thinkingId}" style="background:#f0f4f8; padding:10px 12px; border-radius:10px; margin-bottom:10px; max-width:85%;">
+            <i class="fas fa-spinner fa-spin"></i>
+        </div>`);
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+        const result = await apiFetch('/chatbot/ask', { method: 'POST', body: { message } });
+        document.getElementById(thinkingId).innerHTML = escapeHtml(result.reply).replace(/\n/g, '<br>');
+    } catch (err) {
+        document.getElementById(thinkingId).textContent = "Sorry, I couldn't reach the server just now.";
+    }
+    messages.scrollTop = messages.scrollHeight;
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Cart - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireLogin();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-graduation-cap"></i> CampusEase</div>
+        <div class="ce-topnav-links">
+            <a href="try.html" class="ce-topnav-link"><i class="fas fa-map-marked-alt"></i> Campus Navigation</a>
+            <a href="menu.html" class="ce-topnav-link"><i class="fas fa-utensils"></i> Food Ordering</a>
+            <a href="cart.html" class="ce-topnav-link active"><i class="fas fa-shopping-cart"></i> Cart <span class="cart-badge" id="navCartCount">0</span></a>
+            <a href="orders.html" class="ce-topnav-link"><i class="fas fa-receipt"></i> My Orders</a>
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-shopping-cart"></i> My Cart</h1>
+        <p id="cartShopLine">Review your items before checking out.</p>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div class="cart-layout">
+        <div id="cartItemsWrap">
+            <div class="empty-state"><i class="fas fa-spinner fa-spin"></i>Loading cart...</div>
+        </div>
+
+        <div class="cart-summary">
+            <h3>Order Summary</h3>
+            <div class="cart-summary-row"><span>Items</span><span id="summaryItemCount">0</span></div>
+            <div class="cart-summary-row total"><span>Total</span><span id="summaryTotal">₹0.00</span></div>
+            <button class="btn btn-primary btn-block" id="checkoutBtn" style="margin-top:16px;" onclick="checkout()">
+                <i class="fas fa-lock"></i> Proceed to Pay
+            </button>
+            <p style="font-size:0.75rem;color:#8a97a8;margin-top:10px;">
+                Secure payment via Razorpay (test mode).
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCart = { items: [] };
+
+async function loadCart() {
+    try {
+        currentCart = await apiFetch('/cart');
+        renderCart();
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+function renderCart() {
+    const wrap = document.getElementById('cartItemsWrap');
+    const items = currentCart.items || [];
+    if (!items.length) {
+        wrap.innerHTML = '<div class="empty-state"><i class="fas fa-shopping-basket"></i>Your cart is empty.<br><br><a href="menu.html" class="btn btn-primary">Browse Menu</a></div>';
+        document.getElementById('checkoutBtn').disabled = true;
+        document.getElementById('cartShopLine').textContent = 'Review your items before checking out.';
+    } else {
+        const shopName = items[0].food.shop ? items[0].food.shop.shopName : null;
+        document.getElementById('cartShopLine').innerHTML = shopName
+            ? `<i class="fas fa-store"></i> Ordering from <strong>${escapeHtml(shopName)}</strong>`
+            : 'Review your items before checking out.';
+        wrap.innerHTML = items.map(item => `
+            <div class="cart-item-row">
+                <div class="cart-item-img">${item.food.imageUrl ? `<img src="${escapeHtml(item.food.imageUrl)}">` : '<i class="fas fa-utensils"></i>'}</div>
+                <div class="cart-item-info">
+                    <h4>${escapeHtml(item.food.foodName)}</h4>
+                    <span>₹${item.food.price.toFixed(2)} each</span>
+                </div>
+                <div class="qty-control">
+                    <button onclick="changeQty(${item.id}, ${item.quantity - 1})">-</button>
+                    <span>${item.quantity}</span>
+                    <button onclick="changeQty(${item.id}, ${item.quantity + 1})">+</button>
+                </div>
+                <div style="width:70px;text-align:right;font-weight:700;color:var(--primary);">₹${item.subtotal.toFixed(2)}</div>
+                <button class="btn btn-outline" onclick="removeItem(${item.id})"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('');
+        document.getElementById('checkoutBtn').disabled = false;
+    }
+
+    const count = items.reduce((s, i) => s + i.quantity, 0);
+    const total = items.reduce((s, i) => s + i.subtotal, 0);
+    document.getElementById('summaryItemCount').textContent = count;
+    document.getElementById('summaryTotal').textContent = '₹' + total.toFixed(2);
+    document.getElementById('navCartCount').textContent = count;
+}
+
+async function changeQty(cartItemId, newQty) {
+    if (newQty < 1) {
+        return removeItem(cartItemId);
+    }
+    try {
+        currentCart = await apiFetch('/cart/update', { method: 'PUT', body: { cartItemId, quantity: newQty } });
+        renderCart();
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+async function removeItem(cartItemId) {
+    try {
+        await apiFetch('/cart/remove/' + cartItemId, { method: 'DELETE' });
+        await loadCart();
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+async function checkout() {
+    const btn = document.getElementById('checkoutBtn');
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing payment...';
+
+    try {
+        const checkoutData = await apiFetch('/orders/checkout', { method: 'POST' });
+
+        if (typeof Razorpay === 'undefined') {
+            throw new Error('Payment SDK failed to load. Check your internet connection and try again.');
+        }
+
+        const options = {
+            key: checkoutData.razorpayKeyId,
+            amount: Math.round(checkoutData.amount * 100),
+            currency: checkoutData.currency,
+            name: 'CampusEase Cafeteria',
+            description: 'Order #' + checkoutData.orderId,
+            order_id: checkoutData.razorpayOrderId,
+            handler: async function (response) {
+                try {
+                    await apiFetch('/orders/verify', {
+                        method: 'POST',
+                        body: {
+                            razorpayOrderId: response.razorpay_order_id,
+                            razorpayPaymentId: response.razorpay_payment_id,
+                            razorpaySignature: response.razorpay_signature,
+                            orderId: checkoutData.orderId
+                        }
+                    });
+                    window.location.href = 'orders.html?paid=1';
+                } catch (verifyErr) {
+                    showError('Payment captured but verification failed: ' + verifyErr.message + '. Contact support with order #' + checkoutData.orderId);
+                }
+            },
+            modal: {
+                ondismiss: function () {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                }
+            },
+            theme: { color: '#002147' }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.on('payment.failed', function (resp) {
+            showError('Payment failed: ' + (resp.error && resp.error.description ? resp.error.description : 'Please try again.'));
+            btn.disabled = false;
+            btn.innerHTML = original;
+        });
+        rzp.open();
+        btn.innerHTML = original;
+    } catch (err) {
+        showError(err.message);
+        btn.disabled = false;
+        btn.innerHTML = original;
+    }
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Student');
+if (Auth.isAdmin()) { document.querySelector('.ce-topnav-links').insertAdjacentHTML('afterbegin', '<a href="admin-orders.html" class="ce-topnav-link"><i class="fas fa-user-shield"></i> Admin Panel</a>'); }
+loadCart();
+</script>
+</body>
+</html>

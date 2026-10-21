@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vendor Dashboard - CampusEase</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="food-style.css">
+</head>
+<body>
+<script src="api.js"></script>
+<script>Auth.requireVendor();</script>
+
+<div class="container">
+    <nav class="ce-topnav">
+        <div class="ce-topnav-brand"><i class="fas fa-store"></i> <span id="shopNameHeader">My Shop</span></div>
+        <div class="ce-topnav-links">
+            <span class="ce-topnav-user" id="ceTopnavUser"></span>
+            <button class="ce-topnav-logout" onclick="Auth.logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-clipboard-list"></i> Orders for Your Shop</h1>
+        <p>Accept incoming orders, update their status, and mark items out of stock if needed.</p>
+    </div>
+
+    <div id="errorBox"></div>
+
+    <div class="admin-grid" id="dashboardGrid">
+        <div class="stat-card"><div class="stat-value" id="statPending">-</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-value" id="statPreparing">-</div><div class="stat-label">Preparing</div></div>
+        <div class="stat-card"><div class="stat-value" id="statReady">-</div><div class="stat-label">Ready for Pickup</div></div>
+        <div class="stat-card"><div class="stat-value" id="statDelivered">-</div><div class="stat-label">Delivered</div></div>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr><th>Order</th><th>Student</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="ordersTableBody">
+            <tr><td colspan="6">Loading...</td></tr>
+        </tbody>
+    </table>
+
+    <div class="page-header">
+        <h1><i class="fas fa-utensils"></i> Your Menu — Quick Availability</h1>
+        <p>Toggle an item off the moment it runs out, so students can't order it while it's gone.</p>
+    </div>
+
+    <table class="admin-table">
+        <thead>
+            <tr><th>Item</th><th>Price</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody id="foodsTableBody">
+            <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+const NEXT_ACTION = {
+    PENDING:   { label: 'Accept',  action: 'accept'  },
+    ACCEPTED:  { label: 'Start Preparing', action: 'prepare' },
+    PREPARING: { label: 'Mark Ready', action: 'ready' },
+    READY:     { label: 'Mark Delivered / Picked Up', action: 'deliver' }
+};
+
+async function loadShop() {
+    try {
+        const shop = await apiFetch('/vendor/my-shop');
+        document.getElementById('shopNameHeader').textContent = shop.shopName;
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+async function loadOrders() {
+    try {
+        const orders = await apiFetch('/vendor/orders');
+        renderOrders(orders);
+        renderStats(orders);
+    } catch (err) {
+        showError(err.message);
+    }
+}
+
+function renderStats(orders) {
+    document.getElementById('statPending').textContent = orders.filter(o => o.orderStatus === 'PENDING').length;
+    document.getElementById('statPreparing').textContent = orders.filter(o => o.orderStatus === 'PREPARING').length;
+    document.getElementById('statReady').textContent = orders.filter(o => o.orderStatus === 'READY').length;
+    document.getElementById('statDelivered').textContent = orders.filter(o => o.orderStatus === 'DELIVERED').length;
+}
+
+function renderOrders(orders) {
+    const body = document.getElementById('ordersTableBody');
+    if (!orders.length) {
+        body.innerHTML = '<tr><td colspan="6">No orders yet.</td></tr>';
+        return;
+    }
+    body.innerHTML = orders.map(o => {
+        const itemsText = (o.items || []).map(i => `${i.quantity}x ${escapeHtml(i.food.foodName)}`).join(', ');
+        const next = NEXT_ACTION[o.orderStatus];
+        const canAct = o.orderStatus !== 'DELIVERED' && o.orderStatus !== 'REJECTED' && o.orderStatus !== 'CANCELLED';
+        const canMarkOOS = (o.orderStatus === 'PENDING' || o.orderStatus === 'ACCEPTED') && o.paymentStatus === 'PAID';
+        return `
+        <tr>
+            <td>#${o.id}<br><span style="color:#8a97a8;font-size:0.78rem;">${new Date(o.createdAt).toLocaleString()}</span></td>
+            <td>${escapeHtml(o.user ? o.user.username : '-')}</td>
+            <td>${itemsText}</td>
+            <td>₹${o.totalAmount.toFixed(2)}</td>
+            <td><span class="status-pill status-${o.orderStatus}">${o.orderStatus}</span></td>
+            <td class="admin-actions">
+                ${next && canAct ? `<button class="btn btn-primary" onclick="doAction(${o.id}, '${next.action}')">${next.label}</button>` : ''}
+                ${canMarkOOS ? `<button class="btn btn-danger" onclick="markOutOfStock(${o.id})">Out of Stock &amp; Refund</button>` : ''}
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function doAction(orderId, action) {
+    try {
+        await apiFetch(`/vendor/orders/${orderId}/${action}`, { method: 'PUT' });
+        await loadOrders();
+    } catch (err) { showError(err.message); }
+}
+
+async function markOutOfStock(orderId) {
+    if (!confirm('This will fully refund the student and reject the order. Continue?')) return;
+    try {
+        await apiFetch(`/vendor/orders/${orderId}/out-of-stock`, { method: 'PUT' });
+        await loadOrders();
+    } catch (err) { showError(err.message); }
+}
+
+async function loadFoods() {
+    try {
+        const foods = await apiFetch('/vendor/foods');
+        renderFoods(foods);
+    } catch (err) { showError(err.message); }
+}
+
+function renderFoods(foods) {
+    const body = document.getElementById('foodsTableBody');
+    if (!foods.length) {
+        body.innerHTML = '<tr><td colspan="4">No menu items assigned to your shop yet. Ask the admin to assign some.</td></tr>';
+        return;
+    }
+    body.innerHTML = foods.map(f => `
+        <tr>
+            <td>${escapeHtml(f.foodName)}</td>
+            <td>₹${f.price.toFixed(2)}</td>
+            <td>${f.availability !== false
+                ? '<span class="status-pill status-DELIVERED">Available</span>'
+                : '<span class="status-pill status-REJECTED">Out of Stock</span>'}</td>
+            <td>
+                <button class="btn ${f.availability !== false ? 'btn-danger' : 'btn-primary'}"
+                    onclick="toggleAvailability(${f.id}, ${f.availability === false})">
+                    ${f.availability !== false ? 'Mark Out of Stock' : 'Mark Available'}
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function toggleAvailability(foodId, makeAvailable) {
+    try {
+        await apiFetch(`/vendor/foods/${foodId}/availability`, { method: 'PUT', body: { available: makeAvailable } });
+        await loadFoods();
+    } catch (err) { showError(err.message); }
+}
+
+function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+document.getElementById('ceTopnavUser').textContent = 'Hi, ' + (Auth.getUsername() || 'Vendor');
+loadShop();
+loadOrders();
+loadFoods();
+setInterval(() => { loadOrders(); }, 15000);
+</script>
+</body>
+</html>
